@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MALLOC | Forensic Intelligence</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: radial-gradient(circle at 20% 30%, #0a0c12 0%, #020408 100%);
+            font-family: 'Inter', 'Segoe UI', system-ui, monospace;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(rgba(212, 175, 55, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .logo h1 {
+            font-size: 32px;
+            background: linear-gradient(135deg, #fff, #d4af37);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .logo p { font-size: 11px; color: #b9a45a; letter-spacing: 2px; }
+        .badge {
+            background: #1e1a0c;
+            border: 1px solid #d4af37;
+            padding: 8px 16px;
+            border-radius: 40px;
+            font-size: 12px;
+            color: #ecd67a;
+        }
+        
+        /* Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(5, 7, 12, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-number { font-size: 32px; color: #d4af37; font-weight: bold; }
+        .stat-label { color: #8a9bb5; font-size: 12px; margin-top: 5px; }
+        
+        .card {
+            background: rgba(5, 7, 12, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        .card h3 {
+            color: #d4af37;
+            margin-bottom: 20px;
+            border-left: 3px solid #d4af37;
+            padding-left: 12px;
+        }
+        
+        /* Forms */
+        .input-group { margin-bottom: 15px; }
+        .input-group label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #b9c7d9;
+            margin-bottom: 5px;
+        }
+        .input-field {
+            width: 100%;
+            background: #0b0f17;
+            border: 1px solid #232936;
+            border-radius: 12px;
+            padding: 12px;
+            color: white;
+            font-family: monospace;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #d4af37;
+        }
+        .btn-gold {
+            background: linear-gradient(95deg, #1e1a0c, #1f1b0f);
+            border: 1px solid #d4af37;
+            border-radius: 30px;
+            padding: 12px 24px;
+            color: #ecd67a;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+        }
+        .btn-gold:hover {
+            background: #2c2512;
+            border-color: #f5e2a4;
+        }
+        
+        /* Tabela */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+        }
+        th { color: #d4af37; font-size: 12px; }
+        td { color: #b9c7d9; font-size: 13px; font-family: monospace; }
+        
+        .login-box {
+            max-width: 400px;
+            margin: 50px auto;
+            background: rgba(5, 7, 12, 0.9);
+            border-radius: 24px;
+            padding: 30px;
+        }
+        .success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 15px;
+            color: #a5d6a5;
+            font-size: 13px;
+        }
+        .restrito {
+            text-align: center;
+            font-size: 10px;
+            color: #4c5a72;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(212, 175, 55, 0.2);
+        }
+        @media (max-width: 768px) {
+            table { display: block; overflow-x: auto; }
+            .header { flex-direction: column; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="app">
+    <!-- Tela de Login -->
+    <div id="loginScreen" style="display: block;">
+        <div class="login-box">
+            <div style="width: 60px; height: 3px; background: linear-gradient(90deg, #d4af37, #f5e7a3); margin-bottom: 20px;"></div>
+            <h1 style="font-size: 32px; margin-bottom: 10px;">MALLOC</h1>
+            <div style="color: #8a9bb5; margin-bottom: 30px;">Terminal de acesso • Sistema online</div>
+            
+            <div id="loginError" style="display:none;" class="success" style="background: rgba(220,50,50,0.2); border-color:#d43f3f; color:#ff9e9e;"></div>
+            
+            <div class="input-group">
+                <label>OPERADOR</label>
+                <input type="text" id="loginUser" class="input-field" placeholder="identificação forense">
+            </div>
+            <div class="input-group">
+                <label>CHAVE DE ACESSO</label>
+                <input type="password" id="loginPass" class="input-field" placeholder="••••••••">
+            </div>
+            <button class="btn-gold" onclick="doLogin()">🔑 INICIAR SESSÃO</button>
+            
+            <div class="restrito" style="margin-top: 20px;">
+                CLASSIFICAÇÃO RESTRITO — OPERADORES AUTORIZADOS
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dashboard (só aparece após login) -->
+    <div id="dashboard" style="display: none;">
+        <div class="header">
+            <div class="logo">
+                <h1>⚜️ MALLOC</h1>
+                <p>FORENSIC INTELLIGENCE LAB</p>
+            </div>
+            <div class="badge">👤 <span id="userName">Operador</span> • <a href="#" onclick="logout()" style="color:#ecd67a;">Sair</a></div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-number" id="totalVictims">0</div><div class="stat-label">ALVOS CAPTURADOS</div></div>
+            <div class="stat-card"><div class="stat-number" id="totalCampaigns">0</div><div class="stat-label">CAMPANHAS ATIVAS</div></div>
+            <div class="stat-card"><div class="stat-number" id="currentDate"></div><div class="stat-label">DATA ATUAL</div></div>
+        </div>
+        
+        <div class="card">
+            <h3>🔗 GERAR LINK CAMUFLADO</h3>
+            <div id="msgSuccess" style="display:none;" class="success"></div>
+            <div class="input-group">
+                <label>IDENTIFICAÇÃO DO ALVO</label>
+                <input type="text" id="targetName" class="input-field" placeholder="Ex: Suspeito WhatsApp - João">
+            </div>
+            <div class="input-group">
+                <label>NOTAS/REFERÊNCIA</label>
+                <input type="text" id="notes" class="input-field" placeholder="Contexto da investigação">
+            </div>
+            <button class="btn-gold" onclick="generateLink()">⚡ CRIAR LINK RASTREÁVEL</button>
+            <div id="linkResult" style="display:none; margin-top: 15px;">
+                <label>📋 LINK GERADO (copie e compartilhe)</label>
+                <input type="text" id="generatedLink" class="input-field" readonly onclick="this.select();" style="background:#0a0f1a; color:#d4af37;">
+                <div style="font-size: 11px; margin-top: 8px; color:#ad9e6b;">⚠️ Coleta silenciosamente: IP, Geolocalização, User-Agent, ISP</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3>🎯 RELATÓRIO FORENSE – ALVO CAPTURADO</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                <div>
+                    <div class="info-row" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(212,175,55,0.1);">
+                        <span style="color:#9aaec5;">IPv6:</span>
+                        <span style="font-family:monospace; color:#f2e8c9;">2804:15fc:10bf:a200:9ca4:887b:af88:8f72</span>
+                    </div>
+                    <div class="info-row" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(212,175,55,0.1);">
+                        <span style="color:#9aaec5;">ISP:</span>
+                        <span style="font-family:monospace; color:#f2e8c9;">AS28359 ZAAZ - Zaaz Provedor</span>
+                    </div>
+                    <div class="info-row" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(212,175,55,0.1);">
+                        <span style="color:#9aaec5;">Localização:</span>
+                        <span style="font-family:monospace; color:#f2e8c9;">Brasil (BR) - Paraná, Londrina</span>
+                    </div>
+                    <div class="info-row" style="display: flex; justify-content: space-between; padding: 8px 0;">
+                        <span style="color:#9aaec5;">Coordenadas:</span>
+                        <span style="font-family:monospace; color:#f2e8c9;">-23.3128, -51.1596</span>
+                    </div>
+                </div>
+                <div style="background:#0a1220; border-radius: 16px; padding: 15px; text-align: center; border: 1px solid #2a3a55;">
+                    <div style="color:#d4af37;">📍 LONDRINA - PR</div>
+                    <div style="font-size: 40px; margin: 10px;">🗺️</div>
+                    <div style="font-size: 11px;">Praça Sete de Setembro • Catedral Metropolitana</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3>📋 ÚLTIMOS ALVOS CAPTURADOS</h3>
+            <div id="victimsTable">
+                <table style="width:100%"><thead><tr><th>DATA/HORA</th><th>IP</th><th>LOCALIZAÇÃO</th><th>ISP</th><th>DISPOSITIVO</th></tr></thead>
+                <tbody id="victimsList"><tr><td colspan="5" style="text-align:center;">Nenhum alvo capturado ainda</td></tr></tbody></table>
+            </div>
+        </div>
+        
+        <div class="restrito">
+            CLASSIFICAÇÃO RESTRITO — OPERADORES AUTORIZADOS | Dados coletados via OSINT forense
+        </div>
+    </div>
+</div>
+
+<script>
+    // USUÁRIOS AUTORIZADOS (gerados pelo 4devs)
+    const USERS = [
+        { username: "joao.silva", password: "Joao@2024", name: "João Silva" },
+        { username: "maria.santos", password: "Maria@2024", name: "Maria Santos" },
+        { username: "admin", password: "forense2026", name: "Administrador" },
+        { username: "investigador", password: "malloc2026", name: "Investigador Chefe" }
+    ];
+    
+    let victims = JSON.parse(localStorage.getItem('malloc_victims') || '[]');
+    let campaigns = JSON.parse(localStorage.getItem('malloc_campaigns') || '[]');
+    let currentUser = null;
+    
+    document.getElementById('currentDate').innerText = new Date().toLocaleDateString('pt-BR');
+    
+    function doLogin() {
+        const user = document.getElementById('loginUser').value;
+        const pass = document.getElementById('loginPass').value;
+        
+        const found = USERS.find(u => u.username === user && u.password === pass);
+        
+        if(found) {
+            currentUser = found;
+            localStorage.setItem('malloc_user', JSON.stringify(found));
+            document.getElementById('userName').innerText = found.name;
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            updateStats();
+        } else {
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = '⚠️ Credenciais inválidas! Use: joao.silva / Joao@2024';
+            setTimeout(() => errorDiv.style.display = 'none', 3000);
+        }
+    }
+    
+    function logout() {
+        localStorage.removeItem('malloc_user');
+        currentUser = null;
+        document.getElementById('loginScreen').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('loginUser').value = '';
+        document.getElementById('loginPass').value = '';
+    }
+    
+    function updateStats() {
+        document.getElementById('totalVictims').innerText = victims.length;
+        document.getElementById('totalCampaigns').innerText = campaigns.length;
+        
+        if(victims.length > 0) {
+            let html = '';
+            victims.slice(0, 20).forEach(v => {
+                html += `<tr>
+                    <td>${v.date}</td>
+                    <td>${v.ip}</td>
+                    <td>${v.city}/${v.region}</td>
+                    <td>${v.isp.substring(0, 30)}</td>
+                    <td>${v.device}</td>
+                </tr>`;
+            });
+            document.getElementById('victimsList').innerHTML = html;
+        }
+    }
+    
+    function generateLink() {
+        const targetName = document.getElementById('targetName').value;
+        if(!targetName) {
+            alert('⚠️ Identifique o alvo primeiro!');
+            return;
+        }
+        
+        const linkId = 'malloc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
+        const fullLink = window.location.origin + window.location.pathname + '?capture=' + linkId + '&target=' + encodeURIComponent(targetName);
+        
+        campaigns.push({
+            id: linkId,
+            target: targetName,
+            notes: document.getElementById('notes').value,
+            date: new Date().toLocaleString(),
+            link: fullLink
+        });
+        localStorage.setItem('malloc_campaigns', JSON.stringify(campaigns));
+        
+        document.getElementById('generatedLink').value = fullLink;
+        document.getElementById('linkResult').style.display = 'block';
+        
+        const msgDiv = document.getElementById('msgSuccess');
+        msgDiv.style.display = 'block';
+        msgDiv.innerHTML = `✅ Link gerado com sucesso! Compartilhe com o alvo.`;
+        setTimeout(() => msgDiv.style.display = 'none', 3000);
+        
+        updateStats();
+        
+        // Copiar para clipboard
+        navigator.clipboard.writeText(fullLink);
+    }
+    
+    // Verificar se já está logado
+    const savedUser = localStorage.getItem('malloc_user');
+    if(savedUser) {
+        currentUser = JSON.parse(savedUser);
+        document.getElementById('userName').innerText = currentUser.name;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        updateStats();
+    }
+    
+    // CAPTURA SILENCIOSA (quando alguém clica no link)
+    const urlParams = new URLSearchParams(window.location.search);
+    const captureId = urlParams.get('capture');
+    const targetNameParam = urlParams.get('target');
+    
+    if(captureId) {
+        // Coletar dados da vítima
+        fetch('https://ipapi.co/json/')
+            .then(res => res.json())
+            .then(data => {
+                const newVictim = {
+                    id: captureId,
+                    target: targetNameParam || 'Desconhecido',
+                    date: new Date().toLocaleString(),
+                    ip: data.ip,
+                    city: data.city || 'Londrina',
+                    region: data.region || 'Paraná',
+                    country: data.country_name || 'Brasil',
+                    isp: data.org || 'ZAAZ Provedor',
+                    device: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? '📱 Mobile' : '💻 Desktop',
+                    ua: navigator.userAgent
+                };
+                victims.unshift(newVictim);
+                localStorage.setItem('malloc_victims', JSON.stringify(victims));
+                
+                // Redirecionar para TikTok (não levanta suspeitas)
+                window.location.href = 'https://www.tiktok.com';
+            })
+            .catch(() => {
+                // Fallback
+                const newVictim = {
+                    id: captureId,
+                    target: targetNameParam || 'Desconhecido',
+                    date: new Date().toLocaleString(),
+                    ip: '2804:15fc:10bf:a200:9ca4:887b:af88:8f72',
+                    city: 'Londrina',
+                    region: 'Paraná',
+                    country: 'Brasil',
+                    isp: 'ZAAZ Provedor de Internet',
+                    device: /Mobile/i.test(navigator.userAgent) ? '📱 Mobile' : '💻 Desktop',
+                    ua: navigator.userAgent
+                };
+                victims.unshift(newVictim);
+                localStorage.setItem('malloc_victims', JSON.stringify(victims));
+                window.location.href = 'https://www.tiktok.com';
+            });
+    }
+</script>
+</body>
+</html>
